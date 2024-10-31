@@ -1,3 +1,6 @@
+
+_app_icon_size = 64
+
 import os
 import sys
 import time
@@ -233,10 +236,20 @@ def add_btn(_label, name=None, path=None, menu=None):
     btn.add(btn_i)
     btn_i.set_tooltip_text(_label)
     btn_i.set_property('property_one',name)
-    btn.connect('button-press-event', _item_event,[name,path,menu])
+    if menu != None:
+        btn.connect('button-press-event', _item_event,[name,path,menu])
     wbox.add(btn)
     btn.show_all()
 
+# remove button
+def remove_btn(sender):
+    for item1 in wbox.get_children():
+        if isinstance(item1, Gtk.EventBox):
+            item = item1.get_children()[0]
+            if sender == item.get_property('property_one'):
+                wbox.remove(item1)
+                item1.destroy()
+                break 
 
 icon_theme = Gtk.IconTheme.get_default()
 
@@ -250,7 +263,7 @@ def _set_icon(icon_name, path):
                 btn = item
                 break
     if btn != None:
-        _pb = icon_theme.load_icon_for_scale(icon_name, 64, 1, Gtk.IconLookupFlags.FORCE_SIZE)
+        _pb = icon_theme.load_icon_for_scale(icon_name, _app_icon_size, 1, Gtk.IconLookupFlags.FORCE_SIZE)
         btn.set_from_pixbuf(_pb)
 
 
@@ -306,6 +319,11 @@ def _item_changed(sender, path):
         old_items = items.copy()
         #
         if _found:
+            if 'Status' in _found[1]:
+                _status = _found[1]['Status']
+                if _status == 'Passive':
+                    return
+            #
             _icon = _found[1]['IconName']
             #
             if 'ToolTip' in _found[1]:
@@ -315,12 +333,13 @@ def _item_changed(sender, path):
             else:
                 _label = ""
             #
-            if 'Status' in _found[1]:
-                _status = _found[1]
-            # 
             _name = _found[0].split("/")[0]
             _path =  "/"+"/".join(_found[0].split("/")[1:])
-            _menu = _found[1]['Menu']
+            if 'Menu' in _found[1]:
+                _menu = _found[1]['Menu']
+            else:
+                _menu = None
+            #
             add_btn(_label, _name, _path, _menu)
             # 
             _set_icon(_icon, _name)
@@ -339,12 +358,9 @@ def _item_changed(sender, path):
                     break
         #
         if _found:
-            for item1 in wbox:
-                if isinstance(item1, Gtk.EventBox):
-                    item = item1.get_children()[0]
-                    if k.split("/")[0] == item.get_property('property_one'):
-                        wbox.remove(item1)
-                        break 
+            # remove button
+            sender = k.split("/")[0]
+            remove_btn(sender)
             #
             old_items = items.copy()
             return
@@ -372,7 +388,26 @@ def _item_changed(sender, path):
                                     elif key == 'Title':
                                         pass
                                     elif key == 'Status':
-                                        pass
+                                        _status = item['Status']
+                                        if _status in ['Active', 'Attention']:
+                                            # create a button
+                                            if 'ToolTip' in item:
+                                                _label = item['ToolTip'][2]
+                                            elif 'Title' in item:
+                                                _label = item['Title']
+                                            else:
+                                                _label = ""
+                                            if 'Menu' in item:
+                                                _menu = item['Menu']
+                                            else:
+                                                _menu = None
+                                            #
+                                            add_btn(_label, sender, path, _menu)
+                                            # set the icon and tooltip
+                                            _set_icon(_icon, sender)
+                                        #
+                                        else:
+                                            remove_btn(sender)
                                     elif key == 'AttentionIconName':
                                         pass
                                     elif key == 'OverlayIconName':
